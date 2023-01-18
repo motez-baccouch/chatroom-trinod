@@ -16,52 +16,43 @@ class Authentification:
             print("Pas de compte trouvé.")
             exit()
 
-    def authentifier(self):
+    def authentifier(self,username,password):
         utilisateur = Utilisateur()
         essais = 0
-        email_input = ''
-        mdp_input = ''
-        credentials_valides = False
-        while (not credentials_valides and essais < 3):
-            email_input = input("Entrer votre email:\n> ")
-            while (not self.verifier_email_valide(email_input)):
-                print("Email invalide.")
-                email_input = input("Entrer votre email de nouveau:\n> ")
-            utilisateur.setEmail(email_input)
-            mdp_input = getpass("Entrer votre mot de passe:\n> ")
-            motdepasse = hashlib.sha256(mdp_input.encode()).hexdigest()
-            utilisateur.setMotdepasse(motdepasse)
-            essais += 1
-            credentials_valides, utilisateur = self.trouver_utilisateur(
-                utilisateur)
-        return credentials_valides or essais == 3, utilisateur
+        
+        
+        
+            
+            
+        utilisateur.username(username)
+        motdepasse = hashlib.sha256(password.encode()).hexdigest()
+        utilisateur.setMotdepasse(motdepasse)
+           
+        credentials_valides,message = self.trouver_utilisateur(utilisateur)
+        return credentials_valides,message
 
-    def verifier_email_valide(self, email):
-        regex = re.compile(r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+')
-        return re.fullmatch(regex, email)
+    
 
     def trouver_utilisateur(self, utilisateur: Utilisateur):
-        sql_query = 'SELECT * FROM utilisateur WHERE email=? and motdepasse=?;'
+        sql_query = 'SELECT * FROM utilisateur WHERE username=? and password=?;'
         utilisateur_a_trouver=(
-            utilisateur.email,
-            utilisateur.motdepasse
+            utilisateur.username,
+            utilisateur.password
         )
         self.cursor.execute(sql_query, utilisateur_a_trouver)
         if (self.cursor.fetchall() == []):
-            print("Credentials invalides.")
-            return False, None
-        token=input("Entrer le token secret associe a ce compte:\n> ")
-        if (not self.verifier_token(token,utilisateur.email)):
-            print("Credentials invalides.")
-            return False, None
+            
+            return False,"Credentials invalides."
+        ##token=input("Entrer le token secret associe a ce compte:\n> ")
+        ##if (not self.verifier_token(token,utilisateur.username)):
+        ##    print("Credentials invalides.")
+        ##    return False, None
 
         self.cursor.execute(sql_query, utilisateur_a_trouver)
         utilisateur_trouve=self.cursor.fetchone()
-        utilisateur.setPrenom(utilisateur_trouve[0])
-        utilisateur.setNom(utilisateur_trouve[1])
-        return True, utilisateur
+        return True, "welcome to our chatbot"
 
-    def verifier_token(self, token, email):
-        sql_query='SELECT * FROM utilisateur WHERE token=? and email=?'
-        self.cursor.execute(sql_query, (token,email,))
+    def verifier_token(self, token, username):
+        sql_query='SELECT * FROM utilisateur WHERE token=? and username=?'
+        self.cursor.execute(sql_query, (token,username,))
         return self.cursor.fetchall() != []
