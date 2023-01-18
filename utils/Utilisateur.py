@@ -4,8 +4,8 @@ class Utilisateur:
         self.password = None
         self.token = None
 
-    def setPrenom(self, prenom):
-        self.prenom = prenom
+    def setUsername(self, username):
+        self.username = username
 
     def setPassword(self, password):
         self.password = password

@@ -17,48 +17,28 @@ class Registration:
             self.cursor.execute(
                 "CREATE TABLE UTILISATEUR(username VARCHAR2, password VARCHAR2, token VARCHAR2)")
 
-    def registrer(self):
+    def registrer(self,username,password,passwordRepeat):
         utilisateur = Utilisateur()
-        email_input = input("Entrer votre email:\n> ")
-        utilisateur_existe = self.verifier_utilisateur_existant(email_input)
-        while (not self.verifier_email_valide(email_input) or utilisateur_existe):
-            if (not self.verifier_email_valide(email_input)):
-                print("Email invalide.")
+        utilisateur_existe = self.verifier_utilisateur_existant(username)
+        if (not self.verifier_username(username) or utilisateur_existe):
+            if (not self.verifier_username(username)):
+                return "usename invalide."
             if (utilisateur_existe):
-                print("Email existe deja.")
-            email_input = input("Entrer votre email de nouveau:\n> ")
+                return "username existe deja."
+    
             utilisateur_existe = self.verifier_utilisateur_existant(
-                email_input)
-        utilisateur.setEmail(email_input)
+                username)
+        utilisateur.setUsername(username)
 
-        prenom_input = input("Entrer votre prenom:\n> ")
-        while (not self.verfier_nom(prenom_input)):
-            print("Prenom invalide.")
-            prenom_input = input("Entrer votre prenom de nouveau:\n> ")
-        utilisateur.setPrenom(prenom_input)
+        
 
-        nom_input = input("Entrer votre nom:\n> ")
-        while (not self.verfier_nom(nom_input)):
-            print("Nom invalide.")
-            nom_input = input("Entrer votre nom de nouveau:\n> ")
-        utilisateur.setNom(nom_input)
 
-        mdp_input = 'none'
-        mdp2_input = 'none2'
-        print("here1")
-        while(mdp_input != mdp2_input):
-            print("here2")
-            mdp_input = getpass("Entrer votre mot de passe:\n> ")
-            print("here3")
-            while(not self.verifier_motdepasse(mdp_input)):
-                print("Le mot de passe doit contenir 1 caractere majuscule, 1 caractere minuscule, 1 chiffre et de taille minimale de 8")
-                mdp_input = getpass(
-                    "Entrer votre mot de passe de nouveau:\n> ")
-            mdp2_input = getpass("Verifier votre mot de passe:\n> ")
-            if (mdp_input != mdp2_input):
-                print("Verification eronnee.")
-        motdepasse = hashlib.sha256(mdp_input.encode()).hexdigest()
-        utilisateur.setMotdepasse(motdepasse)
+       
+        if(password != passwordRepeat):
+            return "passwords does not match"
+        else:    
+            motdepasse = hashlib.sha256(password.encode()).hexdigest()
+            utilisateur.setMotdepasse(motdepasse)
 
         token = self.generer_token()
         utilisateur.setToken(token)
@@ -68,17 +48,14 @@ class Registration:
         token_path = input(
             "Donner le path du fichier pour sauvegarder le token:\n> ")
         with open(token_path, 'a') as f:
-            f.write(''+utilisateur.prenom+' '+utilisateur.nom+': '+utilisateur.token+"\n")
+            f.write(''+utilisateur.username+': '+utilisateur.token+"\n")
         self.enregistrer_bd(utilisateur)
 
         return True, utilisateur
 
-    def verifier_email_valide(self, email):
-        regex = re.compile(
-            r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+')
-        return re.fullmatch(regex, email)
+  
 
-    def verfier_nom(self, nom):
+    def verfier_username(self, nom):
         regex = re.compile(r'^[a-zA-Z]+$')
         return re.fullmatch(regex, nom)
 
@@ -88,7 +65,7 @@ class Registration:
 
     def verifier_utilisateur_existant(self, email):
         self.cursor.execute(
-            'SELECT * FROM utilisateur WHERE email=?', (email,))
+            'SELECT * FROM utilisateur WHERE username=?', (email,))
         return self.cursor.fetchall() != []
 
     def enregistrer_bd(self, utilisateur: Utilisateur):
