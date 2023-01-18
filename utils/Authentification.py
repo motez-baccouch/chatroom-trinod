@@ -24,9 +24,9 @@ class Authentification:
         
             
             
-        utilisateur.username(username)
+        utilisateur.setUsername(username)
         motdepasse = hashlib.sha256(password.encode()).hexdigest()
-        utilisateur.setMotdepasse(motdepasse)
+        utilisateur.setPassword(motdepasse)
            
         credentials_valides,message = self.trouver_utilisateur(utilisateur)
         return credentials_valides,message
