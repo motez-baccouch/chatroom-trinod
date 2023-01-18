@@ -4,29 +4,23 @@ from tkinter import messagebox, Frame
 def default_success_command():
     print("success")
 
-def default_signup_command():
-    print("signup")
-
-class LoginFrame(tkinter.Frame): 
-    def __init__(self,container, success_command= default_success_command, signup_command=default_signup_command):
+class SignupFrame(tkinter.Frame): 
+    def __init__(self,container, success_command= default_success_command, login_command=default_success_command):
         super().__init__(container)
-
-        self.success_command= success_command
 
         # Creating widgets
         self.login_label = tkinter.Label(
-            self, text="Login", bg='#333333', fg="#FF3399", font=("Arial", 30))
+            self, text="Signup", bg='#333333', fg="#FF3399", font=("Arial", 30))
         self.username_label = tkinter.Label(
             self, text="Username", bg='#333333', fg="#FFFFFF", font=("Arial", 16))
         self.username_entry = tkinter.Entry(self, font=("Arial", 16))
         self.password_entry = tkinter.Entry(self, show="*", font=("Arial", 16))
         self.password_label = tkinter.Label(
             self, text="Password", bg='#333333', fg="#FFFFFF", font=("Arial", 16))
-        self.login_button = tkinter.Button(
-            self, text="Login", command=self.login)
-
         self.signup_button = tkinter.Button(
-            self,text="Signup", command=signup_command
+            self, text="Signup", command=self.signup)
+        self.login_button = tkinter.Button(
+            self, text="Login", command=login_command
         )
 
         # Placing widgets on the screen
@@ -35,25 +29,17 @@ class LoginFrame(tkinter.Frame):
         self.username_entry.grid(row=1, column=1, pady=20)
         self.password_label.grid(row=2, column=0)
         self.password_entry.grid(row=2, column=1, pady=20)
-        self.login_button.grid(row=3, column=0, columnspan=2, pady=10)
-        self.signup_button.grid(row=4, column=0, columnspan=2)
+        self.signup_button.grid(row=3, column=0, columnspan=2, pady=30)
+        self.login_button.grid(row=4, column=0, columnspan=2)
 
+        self.success_command= success_command
 
-    def login(self):
-        username = "motez"
-        password = "baccouch"
-        if self.username_entry.get()==username and self.password_entry.get()==password:
-            messagebox.showinfo(title="Login Success", message="You successfully logged in.")
-            self.success_command()
+    def sigup(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
 
-        else:
-            messagebox.showerror(title="Error", message="Invalid login.")
+        
+
 
 
     
-    
-
-    
-
-    
-

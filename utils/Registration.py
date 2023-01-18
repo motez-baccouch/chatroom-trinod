@@ -15,7 +15,7 @@ class Registration:
             "SELECT name FROM sqlite_master WHERE type='table' AND name='UTILISATEUR';")
         if (self.cursor.fetchall() == []):
             self.cursor.execute(
-                "CREATE TABLE UTILISATEUR(prenom VARCHAR2, nom VARCHAR2, email VARCHAR2, motdepasse VARCHAR2, token VARCHAR2)")
+                "CREATE TABLE UTILISATEUR(username VARCHAR2, password VARCHAR2, token VARCHAR2)")
 
     def registrer(self):
         utilisateur = Utilisateur()
@@ -92,12 +92,10 @@ class Registration:
         return self.cursor.fetchall() != []
 
     def enregistrer_bd(self, utilisateur: Utilisateur):
-        sql_query = 'INSERT INTO utilisateur VALUES(?,?,?,?,?);'
+        sql_query = 'INSERT INTO utilisateur VALUES(?,?,?);'
         utilisateur_insertion = (
-            utilisateur.prenom,
-            utilisateur.nom,
-            utilisateur.email,
-            utilisateur.motdepasse,
+            utilisateur.username,
+            utilisateur.password,
             utilisateur.token
         )
         self.cursor.execute(sql_query, utilisateur_insertion)
