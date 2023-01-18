@@ -3,7 +3,7 @@ import secrets
 import sqlite3
 import hashlib
 import string
-from Utilisateur import Utilisateur
+from utils.Utilisateur import Utilisateur
 from getpass import getpass
 
 

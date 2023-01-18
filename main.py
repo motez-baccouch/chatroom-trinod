@@ -1,42 +1,26 @@
 import tkinter
-from tkinter import messagebox
+from tkinter.messagebox import showinfo
+from pages.login import LoginFrame
+from pages.client import ClientFrame
 
 
-window = tkinter.Tk()
-window.title("Login form")
-window.geometry('440x440')
-window.configure(bg='#333333')
+class MainFrame(tkinter.Frame):
+    def __init__(self, container):
+        super().__init__(container)
 
-def login():
-    username = "motez"
-    password = "baccouch"
-    if username_entry.get()==username and password_entry.get()==password:
-        messagebox.showinfo(title="Login Success", message="You successfully logged in.")
-    else:
-        messagebox.showerror(title="Error", message="Invalid login.")
+        options = {'padx': 5, 'pady': 5}
 
-frame = tkinter.Frame(bg='#333333')
+        # login frame
+        self.login_frame = LoginFrame(self, success_command=self.go_to_chat)
+        self.login_frame.grid(row=0, column=0)
 
-# Creating widgets
-login_label = tkinter.Label(
-    frame, text="Login", bg='#333333', fg="#FF3399", font=("Arial", 30))
-username_label = tkinter.Label(
-    frame, text="Username", bg='#333333', fg="#FFFFFF", font=("Arial", 16))
-username_entry = tkinter.Entry(frame, font=("Arial", 16))
-password_entry = tkinter.Entry(frame, show="*", font=("Arial", 16))
-password_label = tkinter.Label(
-    frame, text="Password", bg='#333333', fg="#FFFFFF", font=("Arial", 16))
-login_button = tkinter.Button(
-    frame, text="Login", bg="#FF3399", fg="#FFFFFF", font=("Arial", 16), command=login)
+        # chat frame
+        self.chat_frame= ClientFrame(self)
+        
 
-# Placing widgets on the screen
-login_label.grid(row=0, column=0, columnspan=2, sticky="news", pady=40)
-username_label.grid(row=1, column=0)
-username_entry.grid(row=1, column=1, pady=20)
-password_label.grid(row=2, column=0)
-password_entry.grid(row=2, column=1, pady=20)
-login_button.grid(row=3, column=0, columnspan=2, pady=30)
+        # show the frame on the container
+        self.pack(**options)
 
-frame.pack()
-
-window.mainloop()
+    def go_to_chat(self):
+        self.login_frame.grid_remove()
+        self.chat_frame.grid(row=0, column=0)
