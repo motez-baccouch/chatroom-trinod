@@ -22,9 +22,9 @@ class Registration:
         utilisateur_existe = self.verifier_utilisateur_existant(username)
         if (not self.verifier_username(username) or utilisateur_existe):
             if (not self.verifier_username(username)):
-                return "usename invalide."
+                return False, "usename invalide."
             if (utilisateur_existe):
-                return "username existe deja."
+                return False, "username existe deja."
     
             utilisateur_existe = self.verifier_utilisateur_existant(
                 username)
@@ -35,19 +35,18 @@ class Registration:
 
        
         if(password != passwordRepeat):
-            return "passwords does not match"
+            return False, "passwords does not match"
         else:    
             motdepasse = hashlib.sha256(password.encode()).hexdigest()
-            utilisateur.setMotdepasse(motdepasse)
+            utilisateur.setPassword(motdepasse)
 
         token = self.generer_token()
         utilisateur.setToken(token)
 
         print()
         print("Le token associé à ce compte est: ", utilisateur.token)
-        token_path = input(
-            "Donner le path du fichier pour sauvegarder le token:\n> ")
-        with open(token_path, 'a') as f:
+
+        with open('token.txt', 'a') as f:
             f.write(''+utilisateur.username+': '+utilisateur.token+"\n")
         self.enregistrer_bd(utilisateur)
 
@@ -55,7 +54,7 @@ class Registration:
 
   
 
-    def verfier_username(self, nom):
+    def verifier_username(self, nom):
         regex = re.compile(r'^[a-zA-Z]+$')
         return re.fullmatch(regex, nom)
 

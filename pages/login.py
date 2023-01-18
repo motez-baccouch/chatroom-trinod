@@ -40,8 +40,8 @@ class LoginFrame(tkinter.Frame):
 
 
     def login(self):
-        username = "motez"
-        password = "baccouch"
+        username = self.username_entry.get()
+        password = self.password_entry.get()
         if self.username_entry.get()==username and self.password_entry.get()==password:
             messagebox.showinfo(title="Login Success", message="You successfully logged in.")
             self.success_command()
