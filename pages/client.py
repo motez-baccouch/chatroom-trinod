@@ -1,12 +1,16 @@
-# import required modules
-import socket
-import threading
+import os, datetime
+import json, socket, threading
+
+from termcolor import colored
+from Cryptodome.Cipher import AES
+from Cryptodome.PublicKey import RSA
+from Cryptodome.Cipher import PKCS1_OAEP
+from base64 import b64encode, b64decode
 import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import messagebox
 
-HOST = '127.0.0.1'
-PORT = 1234
+
 
 DARK_GREY = '#121212'
 MEDIUM_GREY = '#1F1B24'
@@ -16,16 +20,19 @@ FONT = ("Helvetica", 17)
 BUTTON_FONT = ("Helvetica", 15)
 SMALL_FONT = ("Helvetica", 13)
 
-# Creating a socket object
-# AF_INET: we are going to use IPv4 addresses
-# SOCK_STREAM: we are using TCP packets for communication
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-
-class ClientFrame(tk.Frame):
-
-    def __init__(self, container):
+class Client(tk.Frame):
+    
+    
+    def __init__(self, server, port, username,container):
         super().__init__(container)
+        
+        self.server = server
+        self.port = port
+        self.username = username
+        self.isStopped = False
+        
+        
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=4)
@@ -59,54 +66,112 @@ class ClientFrame(tk.Frame):
         self.message_box.config(state=tk.DISABLED)
         self.message_box.pack(side=tk.TOP)
 
-
-    def add_message(self, message):
-        self.message_box.config(state=tk.NORMAL)
-        self.message_box.insert(tk.END, message + '\n')
-        self.message_box.config(state=tk.DISABLED)
-
-    def connect(self):
-
-        # try except block
+    def create_connection(self):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
+            self.s.connect((self.server, self.port))
+        except Exception as e:
+            print(colored('[!] ' + e.__str__(), 'red'))
 
-            # Connect to the server
-            client.connect((HOST, PORT))
-            print("Successfully connected to server")
-            self.add_message("[SERVER] Successfully connected to the server")
-        except:
-            messagebox.showerror("Unable to connect to server", f"Unable to connect to server {HOST} {PORT}")
+        self.s.send(self.username.encode())
+        self.add_message("[+] Connecte avec succes!")
+        self.add_message("[+] Echangement de cles...")
+       
 
-        username = self.username_textbox.get()
-        if username != '':
-            client.sendall(username.encode())
-        else:
-            messagebox.showerror("Invalid username", "Username cannot be empty")
+        self.create_key_pairs()
+        self.exchange_public_keys()
+        global secret_key
+        secret_key = self.handle_secret()
 
-        threading.Thread(target=self.listen_for_messages_from_server, args=(client, )).start()
+        self.add_message("[+] Initiation complete")
+        self.add_message("[+] Vous pouvez echanger des messages")
 
-        self.username_textbox.config(state=tk.DISABLED)
-        self.username_button.config(state=tk.DISABLED)
+        message_handler = threading.Thread(target=self.handle_messages, args=())
+        message_handler.start()
+        input_handler = threading.Thread(target=self.input_handler, args=())
+        input_handler.start()
+        while not self.isStopped:
+            continue
 
-    def send_message(self):
-        message = self.message_textbox.get()
-        if message != '':
-            client.sendall(message.encode())
-            self.message_textbox.delete(0, len(message))
-        else:
-            messagebox.showerror("Empty message", "Message cannot be empty")
-
-    def listen_for_messages_from_server(self, client):
-
-        while 1:
-
-            message = client.recv(2048).decode('utf-8')
-            if message != '':
-                username = message.split("~")[0]
-                content = message.split('~')[1]
-
-                self.add_message(f"[{username}] {content}")
-                
+    def handle_messages(self):
+        while not self.isStopped:
+            message = self.s.recv(1024).decode()
+            if message:
+                key = secret_key
+                decrypt_message = json.loads(message)
+                iv = b64decode(decrypt_message['iv'])
+                cipherText = b64decode(decrypt_message['ciphertext'])
+                cipher = AES.new(key, AES.MODE_CFB, iv=iv)
+                msg = cipher.decrypt(cipherText)
+                current_time = datetime.datetime.now()
+                self.add_message(current_time.strftime('%Y-%m-%d %H:%M:%S ') + msg.decode())
+                print(current_time.strftime('%Y-%m-%d %H:%M:%S ') + msg.decode())
             else:
-                messagebox.showerror("Error", "Message recevied from client is empty")
+                self.add_message("[!] Connection au serveur perdue")
+                self.add_message("[!] Fermeture de connection")
+                print('[!] Connection au serveur perdue', 'red')
+                print('[!] Fermeture de connection', 'red')
+                self.s.shutdown(socket.SHUT_RDWR)
+                self.isStopped = True
 
+    def input_handler(self):
+       
+        message = self.message_textbox.get()
+       
+        key = secret_key
+        cipher = AES.new(key, AES.MODE_CFB)
+        message_to_encrypt = self.username + ": " + message
+        msgBytes = message_to_encrypt.encode()
+        encrypted_message = cipher.encrypt(msgBytes)
+        iv = b64encode(cipher.iv).decode('utf-8')
+        message = b64encode(encrypted_message).decode('utf-8')
+        result = json.dumps({'iv': iv, 'ciphertext': message})
+        self.s.send(result.encode())
+
+        self.s.shutdown(socket.SHUT_RDWR)
+        self.isStopped = True
+
+    def handle_secret(self):
+        secret_key = self.s.recv(1024)
+        private_key = RSA.importKey(open(f'keys/{self.username}_private_key.pem', 'r').read())
+        cipher = PKCS1_OAEP.new(private_key)
+        return cipher.decrypt(secret_key)
+
+    def exchange_public_keys(self):
+        try:
+            self.add_message("[+] Recevoir la cle publique du serveur")
+            print('[+] Recevoir la cle publique du serveur', 'yellow')
+            server_public_key = self.s.recv(1024).decode()
+            server_public_key = RSA.importKey(server_public_key)
+
+            self.add_message("[+] Envoyement de cle publique au serveur")
+            print('[+] Envoyement de cle publique au serveur')
+            public_pem_key = RSA.importKey(open(f'keys/{self.username}_public_key.pem', 'r').read())
+            self.s.send(public_pem_key.exportKey())
+            self.add_message("[+] Echangement complete!")
+            print('[+] Echangement complete!')
+
+        except Exception as e:
+            print(colored('[!] ERROR, you messed up something.... ' + str(e), 'red'))
+
+    def create_key_pairs(self):
+        try:
+            private_key = RSA.generate(2048)
+            public_key = private_key.publickey()
+            private_pem = private_key.exportKey().decode()
+            public_pem = public_key.exportKey().decode()
+            with open(f'keys/{self.username}_private_key.pem', 'w') as priv:
+                priv.write(private_pem)
+            with open(f'keys/{self.username}_public_key.pem', 'w') as pub:
+                pub.write(public_pem)
+
+        except Exception as e:
+            print(colored('[!] ERROR, you messed up something.... ' + e.__str__(), 'red'))
+
+
+def initialize_and_start_client(username):
+    client = Client('127.0.0.1', 8081, username)
+    client.create_connection()
+    
+
+initialize_and_start_client("motez")

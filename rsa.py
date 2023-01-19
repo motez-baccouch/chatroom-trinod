@@ -1,6 +1,6 @@
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP
-from Crypto.Random import get_random_bytes
+from Cryptodome.PublicKey import RSA
+from Cryptodome.Cipher import PKCS1_OAEP
+from Cryptodome.Random import get_random_bytes
 
 
 #server rsa functions 
@@ -41,7 +41,7 @@ def send_pub_key( c):
             public_key = RSA.importKey(open('keys/Spublickeys.pem', 'r').read())
             c.send(public_key.exportKey())
             client_pub_key = c.recv(1024)
-            print('[+] Cle publique du client recu', 'yellow')
+            print('[+] Cle publique du client recu')
             return client_pub_key
 
         except Exception as e:
@@ -58,17 +58,17 @@ def handle_secret(self):
 
 def exchange_public_keys(self):
     try:
-        print(colored('[+] Recevoir la cle publique du serveur', 'yellow'))
+        print('[+] Recevoir la cle publique du serveur')
         server_public_key = self.s.recv(1024).decode()
         server_public_key = RSA.importKey(server_public_key)
 
-        print(colored('[+] Envoyement de cle publique au serveur', 'yellow'))
+        print('[+] Envoyement de cle publique au serveur')
         public_pem_key = RSA.importKey(open(f'chatroom_keys/{self.username}_public_key.pem', 'r').read())
         self.s.send(public_pem_key.exportKey())
-        print(colored('[+] Echangement complete!', 'green'))
+        print('[+] Echangement complete!')
 
     except Exception as e:
-        print(colored('[!] ERROR, you messed up something.... ' + str(e), 'red'))
+        print('[!] ERROR, you messed up something.... ' + str(e))
 
 def create_key_pairs(self):
     try:
@@ -82,4 +82,4 @@ def create_key_pairs(self):
             pub.write(public_pem)
 
     except Exception as e:
-        print(colored('[!] ERROR, you messed up something.... ' + e.__str__(), 'red'))
+        print('[!] ERROR, you messed up something.... ' + e.__str__())
