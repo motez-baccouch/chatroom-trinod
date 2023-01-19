@@ -1,86 +1,147 @@
-# Import required modules
-import socket
-import threading
-
-HOST = '127.0.0.1'
-PORT = 1234 # You can use any port between 0 to 65535
-LISTENER_LIMIT = 5
-active_clients = [] # List of all currently connected users
-
-# Function to listen for upcoming messages from a client
-def listen_for_messages(client, username):
-
-    while 1:
-
-        message = client.recv(2048).decode('utf-8')
-        if message != '':
-            
-            final_msg = username + '~' + message
-            send_messages_to_all(final_msg)
-
-        else:
-            print(f"The message send from client {username} is empty")
+import socket, threading
+import os, datetime
+from Cryptodome.PublicKey import RSA
+from Cryptodome.Cipher import PKCS1_OAEP
+from Cryptodome.Random import get_random_bytes
+from termcolor import colored
 
 
-# Function to send message to a single client
-def send_message_to_client(client, message):
+class Serveur:
+    def __init__(self, port):
 
-    client.sendall(message.encode())
+        self.host = '127.0.0.1'
+        self.port = port
+        self.isStopped = False
 
-# Function to send any new message to all the clients that
-# are currently connected to this server
-def send_messages_to_all(message):
-    
-    for user in active_clients:
+    def start_server(self):
 
-        send_message_to_client(user[1], message)
+        self.generate_keys()
+        secret_key = get_random_bytes(16)
 
-# Function to handle client
-def client_handler(client):
-    
-    # Server will listen for client message that will
-    # Contain the username
-    while 1:
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        username = client.recv(2048).decode('utf-8')
-        if username != '':
-            active_clients.append((username, client))
-            prompt_message = "SERVER~" + f"{username} added to the chat"
-            send_messages_to_all(prompt_message)
-            break
-        else:
-            print("Client username is empty")
+        self.clients = []
 
-    threading.Thread(target=listen_for_messages, args=(client, username, )).start()
+        self.s.bind((self.host, self.port))
+        self.s.listen(100)
 
-# Main function
-def main():
+        print(colored('[+] Host: ' + str(self.host), 'green'))
+        print(colored('[+] Port: ' + str(self.port), 'green'))
 
-    # Creating the socket class object
-    # AF_INET: we are going to use IPv4 addresses
-    # SOCK_STREAM: we are using TCP packets for communication
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.username_lookup = {}
 
-    # Creating a try catch block
-    try:
-        # Provide the server with an address in the form of
-        # host IP and port
-        server.bind((HOST, PORT))
-        print(f"Running the server on {HOST} {PORT}")
-    except:
-        print(f"Unable to bind to host {HOST} and port {PORT}")
+        print(self.isStopped)
+        while not self.isStopped:
+            c, addr = self.s.accept()
+            if (self.isStopped):
+                break
+            username = c.recv(1024).decode()
+            print(colored('[+] Nouvelle connection. Utilisateur: ' + str(username), 'yellow'))
+            self.broadcast(' Nouvelle personne a joigne le chatroom. Utilisateur: ' + username)
+            self.username_lookup[c] = username
+            self.clients.append(c)
+            client_pub_key = self.send_pub_key(c)
+            encrypted_secret = self.encrypt_secret(client_pub_key, secret_key)
+            self.send_secret(c, encrypted_secret)
+            threading.Thread(target=self.handle_client, args=(c, addr,)).start()
 
-    # Set server limit
-    server.listen(LISTENER_LIMIT)
+    def broadcast(self, msg):
+        for connection in self.clients:
+            print(colored('[+] Broadcast message: ' + msg, 'yellow'))
 
-    # This while loop will keep listening to client connections
-    while 1:
+    def generate_keys(self):
+        try:
+            private_key = RSA.generate(2048)
+            public_key = private_key.publickey()
+            private_key_pem = private_key.exportKey().decode()
+            public_key_pem = public_key.exportKey().decode()
+            print("creating keys")
+            with open('chatroom_keys/server_private_key.pem', 'wb') as priv:
+                priv.write(private_key_pem.encode())
+            with open('chatroom_keys/server_public_key.pem', 'wb') as pub:
+                pub.write(public_key_pem.encode())
+            return public_key
 
-        client, address = server.accept()
-        print(f"Successfully connected to client {address[0]} {address[1]}")
+        except Exception as e:
+            print(e)
 
-        threading.Thread(target=client_handler, args=(client, )).start()
+    def encrypt_secret(self, client_pub_key, secret_key):
+        try:
+            cpKey = RSA.importKey(client_pub_key)
+            cipher = PKCS1_OAEP.new(cpKey)
+            encrypted_secret = cipher.encrypt(secret_key)
+            return encrypted_secret
+
+        except Exception as e:
+            print(e)
+
+    def send_secret(self, c, secret_key):
+        try:
+            c.send(secret_key)
+            print(colored('[+] Cle secrete est envoye au client', 'yellow'))
+
+        except Exception as e:
+            print(e)
+
+    def send_pub_key(self, c):
+        try:
+            public_key = RSA.importKey(open('chatroom_keys/server_public_key.pem', 'r').read())
+            c.send(public_key.exportKey())
+            client_pub_key = c.recv(1024)
+            print(colored('[+] Cle publique du client recu', 'yellow'))
+            return client_pub_key
+
+        except Exception as e:
+            print(e)
+
+    def handle_client(self, c, addr):
+
+        while True:
+            try:
+                msg = c.recv(1024)
+            except:
+                c.shutdown(socket.SHUT_RDWR)
+                self.clients.remove(c)
+                self.broadcast(str(self.username_lookup[c]) + ' est sorti.')
+                break
+
+            if msg.decode() != '':
+                print("message to be sent",msg.decode())
+                current_time = datetime.datetime.now()
+                print(colored(current_time.strftime('%Y-%m-%d %H:%M:%S') + ' Message echange', 'blue'))
+                for connection in self.clients:
+                    if connection != c:
+                        try:
+                            print(msg)
+                            connection.send(msg)
+                        except Exception as e:
+                            print(e)
+            else:
+                print(colored('[+] ' + self.username_lookup[c] + ' est sorti du serveur.', 'red'))
+                for conn in self.clients:
+                    if conn == c:
+                        self.clients.remove(c)
+                break
 
 
-if __name__ == '__main__':
-    main()
+def terminate(Serveur):
+    while True:
+        command = input('')
+        if (command == 'TERMINATE'):
+            for conn in Serveur.clients:
+                conn.shutdown(socket.SHUT_RDWR)
+            print(colored('[+] Tous les connections sont terminees', 'red'))
+        break
+    print(colored('[+] Serveur est ferme', 'red'))
+    Serveur.isStopped = True
+    socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((Serveur.host, Serveur.port))
+    Serveur.s.close()
+
+
+def initialize_and_start_server():
+    serveur = Serveur(1234)
+    t_terminate = threading.Thread(target=terminate, args=(serveur,))
+    t_terminate.start()
+    serveur.start_server()
+
+initialize_and_start_server()
